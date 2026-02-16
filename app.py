@@ -2,23 +2,42 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+import os
 import platform
 import datetime
+import urllib.request
 
-# --- 1. 字型設定 (終極版) ---
-# 這裡我們不需要再下載了，直接呼叫系統字型
+# --- 1. 終極字型設定 (強迫下載並使用字型檔) ---
 def set_font():
-    system = platform.system()
-    if system == 'Windows':
-        # Windows (您的電腦)
+    # 如果是 Windows (您的 Surface Pro)，直接用微軟正黑體
+    if platform.system() == 'Windows':
         plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
+        plt.rcParams['axes.unicode_minus'] = False
     else:
-        # Linux (Streamlit Cloud 雲端)
-        # 我們已經在 packages.txt 裝了 fonts-noto-cjk，這裡直接用
-        plt.rcParams['font.sans-serif'] = ['Noto Sans CJK TC', 'WenQuanYi Zen Hei', 'DejaVu Sans']
-    
+        # 如果是 Linux (Streamlit Cloud)，直接下載字型檔
+        font_filename = "NotoSansTC-Regular.otf"
+        
+        # 檢查檔案是否存在，不存在就下載
+        if not os.path.exists(font_filename):
+            with st.spinner("正在下載中文字型檔 (初次執行需約 10 秒)..."):
+                url = "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC-Regular.otf"
+                try:
+                    urllib.request.urlretrieve(url, font_filename)
+                except Exception as e:
+                    st.error(f"字型下載失敗: {e}")
+                    return
+
+        # 強制加入字型檔到 Matplotlib
+        try:
+            fm.fontManager.addfont(font_filename)
+            plt.rcParams['font.family'] = 'Noto Sans TC'
+        except Exception as e:
+            st.warning(f"字型載入異常: {e}")
+
     plt.rcParams['axes.unicode_minus'] = False
 
+# 呼叫字型設定
 set_font()
 
 # --- 2. 網頁標題 ---
@@ -27,7 +46,7 @@ st.write("輸入台股代號，自動生成亞當理論第二映像圖！")
 
 # --- 3. 側邊欄輸入區 ---
 st.sidebar.header("參數設定")
-stock_input = st.sidebar.text_input("輸入台股代號 (例如 2330, 3653):", value="2330")
+stock_input = st.sidebar.text_input("輸入台股代號 (例如 2330, 3653):", value="2303")
 
 interval_option = st.sidebar.selectbox(
     "選擇週期",
@@ -42,11 +61,9 @@ def get_stock_data(code_input, interval):
     code_input = str(code_input).strip()
     suffixes = ['.TW', '.TWO']
     
-    # 週期設定：日線抓2年，週線抓5年，月線抓10年
     period = '2y' if interval == '1d' else '5y'
     if interval == '1mo': period = '10y'
     
-    # 簡單邏輯：如果使用者沒打後綴，我們自動試
     if code_input.upper().endswith('.TW') or code_input.upper().endswith('.TWO'):
         try:
             df = yf.download(code_input, period=period, interval=interval, progress=False)
@@ -73,7 +90,6 @@ if st.sidebar.button("開始分析"):
         if df is None:
             st.error(f"找不到代號 {stock_input} 的資料。")
         else:
-            # 處理 MultiIndex
             if 'Close' in df.columns:
                 if isinstance(df.columns, pd.MultiIndex):
                     close = df['Close'].iloc[:, 0]
@@ -112,6 +128,7 @@ if st.sidebar.button("開始分析"):
             # --- 6. 畫圖 ---
             fig, ax = plt.subplots(figsize=(10, 6))
             
+            # 為了讓圖表更好看，只取最後一段
             display_len = 120
             if len(close) > display_len:
                 plot_data = close.iloc[-display_len:]
@@ -133,4 +150,3 @@ if st.sidebar.button("開始分析"):
             
             st.pyplot(fig)
             st.success(f"目前價格: {current_price:.2f}")
-            st.info("亞當理論操作心法：順勢而為，不預測頭部與底部。")
