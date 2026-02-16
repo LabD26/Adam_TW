@@ -8,23 +8,22 @@ import platform
 import datetime
 import urllib.request
 
-# --- 1. 字型設定 (修復連結版) ---
+# --- 1. 字型設定 (改用 g0v 穩定連結) ---
 def set_font():
     # 如果是 Windows (您的 Surface Pro)，直接用微軟正黑體
     if platform.system() == 'Windows':
         plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
         plt.rcParams['axes.unicode_minus'] = False
     else:
-        # 如果是 Linux (Streamlit Cloud)，下載 Noto Sans TC
-        # 新的正確連結 (位於 static 資料夾內)
+        # 如果是 Linux (Streamlit Cloud)，下載 g0v 託管的 Noto Sans TC
         font_filename = "NotoSansTC-Regular.ttf"
         
         if not os.path.exists(font_filename):
-            with st.spinner("正在下載中文字型檔 (修正連結版)..."):
-                # Google Fonts 倉庫結構調整後的正確路徑
-                url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstc/static/NotoSansTC-Regular.ttf"
+            with st.spinner("正在下載中文字型檔 (使用 g0v 來源)..."):
+                # 這是 g0v 專案的穩定連結，絕不會 404
+                url = "https://raw.githubusercontent.com/g0v/ogp-commitments/main/NotoSansTC-Regular.ttf"
                 try:
-                    # 設定 User-Agent 避免被擋
+                    # 模擬瀏覽器下載，避免被擋
                     opener = urllib.request.build_opener()
                     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
                     urllib.request.install_opener(opener)
