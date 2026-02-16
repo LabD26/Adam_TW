@@ -8,27 +8,32 @@ import platform
 import datetime
 import urllib.request
 
-# --- 1. 終極字型設定 (強迫下載並使用字型檔) ---
+# --- 1. 字型設定 (修復連結版) ---
 def set_font():
     # 如果是 Windows (您的 Surface Pro)，直接用微軟正黑體
     if platform.system() == 'Windows':
         plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
         plt.rcParams['axes.unicode_minus'] = False
     else:
-        # 如果是 Linux (Streamlit Cloud)，直接下載字型檔
-        font_filename = "NotoSansTC-Regular.otf"
+        # 如果是 Linux (Streamlit Cloud)，下載 Noto Sans TC
+        # 新的正確連結 (位於 static 資料夾內)
+        font_filename = "NotoSansTC-Regular.ttf"
         
-        # 檢查檔案是否存在，不存在就下載
         if not os.path.exists(font_filename):
-            with st.spinner("正在下載中文字型檔 (初次執行需約 10 秒)..."):
-                url = "https://github.com/google/fonts/raw/main/ofl/notosanstc/NotoSansTC-Regular.otf"
+            with st.spinner("正在下載中文字型檔 (修正連結版)..."):
+                # Google Fonts 倉庫結構調整後的正確路徑
+                url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstc/static/NotoSansTC-Regular.ttf"
                 try:
+                    # 設定 User-Agent 避免被擋
+                    opener = urllib.request.build_opener()
+                    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                    urllib.request.install_opener(opener)
                     urllib.request.urlretrieve(url, font_filename)
                 except Exception as e:
                     st.error(f"字型下載失敗: {e}")
                     return
 
-        # 強制加入字型檔到 Matplotlib
+        # 強制加入字型檔
         try:
             fm.fontManager.addfont(font_filename)
             plt.rcParams['font.family'] = 'Noto Sans TC'
@@ -46,7 +51,7 @@ st.write("輸入台股代號，自動生成亞當理論第二映像圖！")
 
 # --- 3. 側邊欄輸入區 ---
 st.sidebar.header("參數設定")
-stock_input = st.sidebar.text_input("輸入台股代號 (例如 2330, 3653):", value="2303")
+stock_input = st.sidebar.text_input("輸入台股代號 (例如 2330, 3653):", value="2330")
 
 interval_option = st.sidebar.selectbox(
     "選擇週期",
@@ -64,6 +69,7 @@ def get_stock_data(code_input, interval):
     period = '2y' if interval == '1d' else '5y'
     if interval == '1mo': period = '10y'
     
+    # 優先嘗試使用者輸入的格式
     if code_input.upper().endswith('.TW') or code_input.upper().endswith('.TWO'):
         try:
             df = yf.download(code_input, period=period, interval=interval, progress=False)
@@ -72,6 +78,7 @@ def get_stock_data(code_input, interval):
         except:
             pass
     else:
+        # 自動嘗試上市或上櫃
         for suffix in suffixes:
             stock_id = f"{code_input}{suffix}"
             try:
@@ -128,7 +135,6 @@ if st.sidebar.button("開始分析"):
             # --- 6. 畫圖 ---
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # 為了讓圖表更好看，只取最後一段
             display_len = 120
             if len(close) > display_len:
                 plot_data = close.iloc[-display_len:]
